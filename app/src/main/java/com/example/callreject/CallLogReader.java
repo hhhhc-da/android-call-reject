@@ -115,7 +115,6 @@ public class CallLogReader{
 }
 
 class CallBlocker extends BroadcastReceiver {
-    private static final String TAG = "CallBlocker";
     private static final String ACTION_INCOMING_CALL = "android.intent.action.PHONE_STATE";
 
     private Map<String, Integer> callLog;
@@ -131,6 +130,11 @@ class CallBlocker extends BroadcastReceiver {
 //        }
 
         Log.i("myError","初始化挂断服务");
+    }
+
+    public void flushCallLog(Map<String, Integer> callLog, Set<String> contacts){
+        this.callLog = callLog;
+        this.contacts = contacts;
     }
 
     @Override
@@ -149,6 +153,68 @@ class CallBlocker extends BroadcastReceiver {
             if (phoneNumber != null) {
                 // 检查号码是否是骚扰电话
                 if (callLog.containsKey(phoneNumber) && this.status == 0) {
+                    this.status = 1;
+
+                    if(contacts.contains(phoneNumber)){
+                        Log.i("myError","检测到通讯录");
+                        return;
+                    }
+
+                    endCall(context);
+                }
+            }
+        }
+    }
+
+    // 挂断电话
+    private void endCall(Context context) {
+        Log.i("myError","挂断电话函数启动");
+
+        TelecomManager tm = (TelecomManager) context.getSystemService(Context.TELECOM_SERVICE);
+        if(tm != null){
+            tm.endCall();
+        }
+
+//        Log.e("myError", "无法挂断电话: ", e);
+    }
+}
+
+class CallBlockerPro extends BroadcastReceiver {
+    private static final String ACTION_INCOMING_CALL = "android.intent.action.PHONE_STATE";
+
+    private Set<String> contacts;
+    private int status = 0;
+
+    public CallBlockerPro(Set<String> contacts) {
+        this.contacts = contacts;
+
+//        for(String i: this.callLog.keySet()){
+//            Log.d("myError","屏蔽号码: " + i);
+//        }
+
+        Log.i("myError","初始化挂断服务");
+    }
+
+    public void flushCallLog(Set<String> contacts){
+        this.contacts = contacts;
+    }
+
+    @Override
+    public void onReceive(Context context, Intent intent) {
+        if(this.status == 1){
+            this.status = 0;
+            return;
+        }
+        // 人工延时
+        for(int i=0;i<100000;i++);
+
+        if (intent.getAction().equals(ACTION_INCOMING_CALL)) {
+            String phoneNumber = intent.getStringExtra(TelephonyManager.EXTRA_INCOMING_NUMBER);
+            Log.i("myError","来电: " + phoneNumber + ",status: " + this.status);
+
+            if (phoneNumber != null) {
+                // 检查号码是否是通讯录
+                if (this.status == 0) {
                     this.status = 1;
 
                     if(contacts.contains(phoneNumber)){
